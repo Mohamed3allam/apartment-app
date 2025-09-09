@@ -84,7 +84,7 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     padding: 1rem;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-    overflow: hidden;
+    overflow: visible;
 
     &:hover {
       transform: translateY(-2px);
