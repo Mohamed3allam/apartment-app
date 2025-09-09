@@ -15,7 +15,7 @@ declare global {
 }
 
 const ENV = process.env.NODE_ENV || "development";
-const isProd = ENV === "production";
+let isProd = ENV === "production";
 
 const fileFilter = (
   req: Request,
@@ -23,10 +23,9 @@ const fileFilter = (
   cb: FileFilterCallback
 ): void => {
   if (
-    file.mimetype === "image/jpeg" ||
-    file.mimetype === "image/jpg" ||
-    file.mimetype === "image/png" ||
-    file.mimetype === "image/gif"
+    ["image/jpeg", "image/jpg", "image/png", "image/gif"].includes(
+      file.mimetype
+    )
   ) {
     cb(null, true);
   } else {
@@ -56,13 +55,52 @@ const upload = multer({
 });
 
 const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 });
+
+if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+  isProd = false;
+  console.warn("⚠️ No AWS credentials found. Falling back to local storage.");
+}
 
 const router: Router = express.Router();
 
 router.use("/uploads", express.static(path.join(__dirname, "../../uploads")));
+
+async function uploadFile(
+  file: Express.Multer.File,
+  req: Request
+): Promise<string> {
+  const serverBaseUrl = `${req.protocol}://${req.get("host")}`;
+
+  if (isProd) {
+    try {
+      const params: AWS.S3.PutObjectRequest = {
+        Bucket: process.env.AWS_BUCKET_NAME!,
+        Key: `images/${file.filename || `file-${Date.now()}`}${path.extname(
+          file.originalname
+        )}`,
+        Body: file.buffer,
+        ACL: "public-read",
+        ContentType: file.mimetype,
+      };
+      const data = await s3.upload(params).promise();
+      return data.Location; // full S3 URL
+    } catch (err) {
+      console.error("⚠️ AWS upload failed, falling back to local:", err);
+      const localPath = path.join(__dirname, "../../uploads");
+      if (!fs.existsSync(localPath)) {
+        fs.mkdirSync(localPath, { recursive: true });
+      }
+      const filename = `file-${Date.now()}${path.extname(file.originalname)}`;
+      fs.writeFileSync(path.join(localPath, filename), file.buffer);
+      return `${serverBaseUrl}/api/v1/upload/uploads/${filename}`;
+    }
+  }
+
+  return `${serverBaseUrl}/api/v1/upload/uploads/${file.filename}`;
+}
 
 router.post(
   "/",
@@ -72,24 +110,7 @@ router.post(
       const file = req.file;
       if (!file) throw new ValidationError("You must upload an image");
 
-      let location: string;
-
-      if (isProd) {
-        const params: AWS.S3.PutObjectRequest = {
-          Bucket: process.env.AWS_BUCKET_NAME!,
-          Key: `images/${file.filename || `file-${Date.now()}`}${path.extname(
-            file.originalname
-          )}`,
-          Body: file.buffer,
-          ACL: "public-read",
-          ContentType: file.mimetype,
-        };
-        const data = await s3.upload(params).promise();
-        location = data.Location;
-      } else {
-        const serverBaseUrl = `${req.protocol}://${req.get("host")}`;
-        location = `${serverBaseUrl}/api/v1/upload/uploads/${file.filename}`;
-      }
+      const location = await uploadFile(file, req);
 
       sendResponse(res, {
         message: "File uploaded successfully",
@@ -113,25 +134,9 @@ router.post(
       }
 
       const locations: string[] = [];
-
       for (const file of files) {
-        if (isProd) {
-          const params: AWS.S3.PutObjectRequest = {
-            Bucket: process.env.AWS_BUCKET_NAME!,
-            Key: `images/${file.filename || `file-${Date.now()}`}${path.extname(
-              file.originalname
-            )}`,
-            Body: file.buffer,
-            ACL: "public-read",
-            ContentType: file.mimetype,
-          };
-          const result = await s3.upload(params).promise();
-          locations.push(result.Location);
-        } else {
-          const serverBaseUrl = `${req.protocol}://${req.get("host")}`;
-          const location = `${serverBaseUrl}/api/v1/upload/uploads/${file.filename}`;
-          locations.push(location);
-        }
+        const loc = await uploadFile(file, req);
+        locations.push(loc);
       }
 
       sendResponse(res, {
