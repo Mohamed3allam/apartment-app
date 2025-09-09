@@ -1,4 +1,5 @@
 import AWS from "aws-sdk";
+import fs from "fs";
 import path from "path";
 import express, { NextFunction, Request, Response, Router } from "express";
 import multer, { FileFilterCallback } from "multer";
@@ -12,6 +13,9 @@ declare global {
     }
   }
 }
+
+const ENV = process.env.NODE_ENV || "development";
+const isProd = ENV === "production";
 
 const fileFilter = (
   req: Request,
@@ -30,19 +34,35 @@ const fileFilter = (
   }
 };
 
-const storage = multer.memoryStorage();
+const storage = isProd
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (req, file, cb) => {
+        const uploadDir = path.join(__dirname, "../../uploads");
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+      },
+      filename: (req, file, cb) => {
+        cb(null, `file-${Date.now()}${path.extname(file.originalname)}`);
+      },
+    });
+
 const upload = multer({
   storage,
-//   fileFilter,
-  dest: "uploads",
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
 
 const s3 = new AWS.S3({
   accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-  secretAccessKey: process.env.AWS_ACCESS_KEY_SECRET!,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
 });
 
 const router: Router = express.Router();
+
+router.use("/uploads", express.static(path.join(__dirname, "../../uploads")));
 
 router.post(
   "/",
@@ -50,29 +70,31 @@ router.post(
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const file = req.file;
-      if (!file) {
-        throw new ValidationError("You must upload an image");
+      if (!file) throw new ValidationError("You must upload an image");
+
+      let location: string;
+
+      if (isProd) {
+        const params: AWS.S3.PutObjectRequest = {
+          Bucket: process.env.AWS_BUCKET_NAME!,
+          Key: `images/${file.filename || `file-${Date.now()}`}${path.extname(
+            file.originalname
+          )}`,
+          Body: file.buffer,
+          ACL: "public-read",
+          ContentType: file.mimetype,
+        };
+        const data = await s3.upload(params).promise();
+        location = data.Location;
+      } else {
+        const serverBaseUrl = `${req.protocol}://${req.get("host")}`;
+        location = `${serverBaseUrl}/api/v1/upload/uploads/${file.filename}`;
       }
-
-      const MAX_SIZE = 5 * 1024 * 1024;
-      if (file.size > MAX_SIZE) {
-        throw new ValidationError("File too large. Max size is 5MB.");
-      }
-
-      const params: AWS.S3.PutObjectRequest = {
-        Bucket: process.env.AWS_BUCKET_NAME!,
-        Key: `images/file-${Date.now()}${path.extname(file.originalname)}`,
-        Body: file.buffer,
-        ACL: "public-read-write",
-        ContentType: file.mimetype,
-      };
-
-      const data = await s3.upload(params).promise();
 
       sendResponse(res, {
         message: "File uploaded successfully",
         success: true,
-        data: data.Location,
+        data: location,
       });
     } catch (error) {
       next(error);
@@ -85,43 +107,39 @@ router.post(
   upload.array("images", 10),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const files = req.files as Express.Multer.File[] | undefined;
+      const files = req.files as Express.Multer.File[];
       if (!files || files.length === 0) {
-        res.status(400).json({ message: "No files uploaded" });
-        return;
+        throw new ValidationError("No files uploaded");
       }
 
       const locations: string[] = [];
 
       for (const file of files) {
-        const MAX_SIZE = 5 * 1024 * 1024;
-        if (file.size > MAX_SIZE) {
-          throw new ValidationError(
-            `File ${file.originalname} too large. Max size is 5MB.`
-          );
+        if (isProd) {
+          const params: AWS.S3.PutObjectRequest = {
+            Bucket: process.env.AWS_BUCKET_NAME!,
+            Key: `images/${file.filename || `file-${Date.now()}`}${path.extname(
+              file.originalname
+            )}`,
+            Body: file.buffer,
+            ACL: "public-read",
+            ContentType: file.mimetype,
+          };
+          const result = await s3.upload(params).promise();
+          locations.push(result.Location);
+        } else {
+          const serverBaseUrl = `${req.protocol}://${req.get("host")}`;
+          const location = `${serverBaseUrl}/api/v1/upload/uploads/${file.filename}`;
+          locations.push(location);
         }
-        const params: AWS.S3.PutObjectRequest = {
-          Bucket: process.env.AWS_BUCKET_NAME!,
-          Key: `images/file-${Date.now()}${path.extname(file.originalname)}`,
-          Body: file.buffer,
-          ACL: "public-read-write",
-          ContentType: file.mimetype,
-        };
-
-        const result = await s3.upload(params).promise();
-        locations.push(result.Location);
       }
+
       sendResponse(res, {
         message: "Files uploaded successfully",
         success: true,
         data: locations,
       });
     } catch (error) {
-      console.error("Upload error:", error);
-      let message = "One or more files failed to upload.";
-      if (error instanceof Error) {
-        message = error.message;
-      }
       next(error);
     }
   }
