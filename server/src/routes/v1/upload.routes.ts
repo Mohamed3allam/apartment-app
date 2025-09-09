@@ -72,7 +72,9 @@ async function uploadFile(
   file: Express.Multer.File,
   req: Request
 ): Promise<string> {
-  const serverBaseUrl = `${req.protocol}://${req.get("host")}`;
+  const serverBaseUrl = `${req.protocol}://${req
+    .get("host")
+    ?.replace("localhost", "127.0.0.1")}`;
 
   if (isProd) {
     try {
