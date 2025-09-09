@@ -1,0 +1,9 @@
+node_modules
+dist
+.next
+.vscode
+.git
+.gitignore
+npm-debug.log
+.env
+.DS_Store

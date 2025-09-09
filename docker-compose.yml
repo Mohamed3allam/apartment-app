@@ -1,0 +1,36 @@
+# version: '3.8'
+services:
+  mongodb:
+    image: mongo:6.0
+    environment:
+      MONGO_INITDB_DATABASE: apartmentdb
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./server/.env
+    depends_on:
+      - mongodb
+    restart: on-failure
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./client/.env
+    depends_on:
+      - server
+    restart: on-failure
+
+volumes:
+  mongodb_data:

@@ -1,0 +1,304 @@
+openapi: 3.0.0
+info:
+  title: Apartment API
+  version: 1.0.0
+  description: CRUD API for apartments
+
+paths:
+  /api/v1/apartments:
+    get:
+      summary: Get all apartments
+      tags:
+        - Apartments
+      parameters:
+        - name: unitName
+          in: query
+          schema:
+            type: string
+        - name: unitNumber
+          in: query
+          schema:
+            type: string
+        - name: project
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: List of apartments
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Apartment"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      summary: Create a new apartment
+      tags:
+        - Apartments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateApartment"
+      responses:
+        "201":
+          description: Apartment created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Apartment"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/v1/apartments/{id}:
+    get:
+      summary: Get apartment by ID
+      tags:
+        - Apartments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Apartment retrieved
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Apartment"
+        "404":
+          description: Apartment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    put:
+      summary: Update apartment by ID
+      tags:
+        - Apartments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateApartment"
+      responses:
+        "200":
+          description: Apartment updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ApiResponse"
+                  - type: object
+                    properties:
+                      data:
+                        $ref: "#/components/schemas/Apartment"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Apartment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      summary: Delete apartment by ID
+      tags:
+        - Apartments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Apartment deleted successfully
+          content: {}
+        "404":
+          description: Apartment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        success:
+          type: boolean
+        data:
+          nullable: true
+          type: object
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        success:
+          type: boolean
+        data:
+          nullable: true
+          type: object
+
+    Apartment:
+      type: object
+      properties:
+        id:
+          type: string
+        unitNumber:
+          type: string
+        unitName:
+          type: string
+        project:
+          type: string
+        description:
+          type: string
+        size:
+          type: number
+          minimum: 0
+        bedrooms:
+          type: integer
+          minimum: 0
+        bathrooms:
+          type: integer
+          minimum: 0
+        price:
+          type: number
+          minimum: 0
+        images:
+          type: array
+          items:
+            type: string
+            format: uri
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateApartment:
+      type: object
+      required:
+        - unitNumber
+        - unitName
+        - project
+        - description
+        - size
+        - bedrooms
+        - bathrooms
+        - price
+        - images
+      properties:
+        unitNumber:
+          type: string
+        unitName:
+          type: string
+        project:
+          type: string
+        description:
+          type: string
+        size:
+          type: number
+          minimum: 0
+        bedrooms:
+          type: integer
+          minimum: 0
+        bathrooms:
+          type: integer
+          minimum: 0
+        price:
+          type: number
+          minimum: 0
+        images:
+          type: array
+          items:
+            type: string
+            format: uri
+
+    UpdateApartment:
+      allOf:
+        - $ref: "#/components/schemas/CreateApartment"

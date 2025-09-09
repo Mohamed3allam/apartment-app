@@ -1,0 +1,57 @@
+.paginationContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pages {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pageBtn,
+.navBtn {
+  background: #f3f3f3;
+  border: none;
+  padding: 0.5rem 0.9rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.pageBtn:hover,
+.navBtn:hover {
+  background: #e0e0e0;
+}
+
+.pageBtn.active {
+  background: #007bff;
+  color: white;
+}
+
+.pageBtn:disabled,
+.navBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ellipsis {
+  display: flex;
+  align-items: center;
+  padding: 0 0.5rem;
+  font-weight: bold;
+}
+
+.limitSelector {
+  padding: 0.4rem 0.6rem;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  background: white;
+  cursor: pointer;
+  font-weight: 500;
+}
