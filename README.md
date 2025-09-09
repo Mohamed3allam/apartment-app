@@ -47,7 +47,11 @@ The entire stack is **containerized with Docker**, so it can be run with **one c
 
 ## Folder Structure
 
-nawy-task/ ├── backend/ # Node.js/Express backend │ ├── src/ # TypeScript source code │ ├── package.json │ ├── tsconfig.json │ ├── Dockerfile │ ├── .dockerignore │ └── .env.example ├── frontend/ # Next.js frontend │ ├── pages/ │ ├── components/ │ ├── package.json │ ├── tsconfig.json │ ├── Dockerfile │ ├── .dockerignore │ └── .env.example ├── docker-compose.yml # Docker Compose to run full stack ├── README.md └── .gitignore
+nawy-task/ ├── server/ # Node.js/Express backend │ ├── src/ # TypeScript source code │ ├── package.json │ ├── tsconfig.json │ ├── Dockerfile │ ├── .dockerignore │ └── .env.example 
+           ├── client/ # Next.js frontend │ ├── pages/ │ ├── components/ │ ├── package.json │ ├── tsconfig.json │ ├── Dockerfile │ ├── .dockerignore │ └── .env.example 
+           ├── docker-compose.yml # Docker Compose to run full stack 
+           ├── README.md 
+           └── .gitignore
 
 ---
 
@@ -74,12 +78,12 @@ Copy .env.example files to .env in both frontend and backend folders and fill in
 
 # Backend
 
-cd backend
+cd server
 cp .env.example .env
 
 # Frontend
 
-cd ../frontend
+cd ../client
 cp .env.example .env
 
 3. Run the entire stack with Docker Compose
@@ -90,7 +94,7 @@ docker compose up --build
 
 Frontend: http://localhost:3000
 
-Backend API: http://localhost:3001
+Backend API: http://localhost:5000
 
 MongoDB: mongodb://mongodb:27017/apartmentdb (internal network for backend)
 
@@ -107,7 +111,7 @@ Backend (backend/.env)
 # MongoDB connection
 
 MONGODB_URI=mongodb://mongodb:27017/apartmentdb
-PORT=3001
+PORT=5000
 
 # JWT secret
 
@@ -122,8 +126,6 @@ AWS_BUCKET_NAME=your_bucket_name
 Frontend (frontend/.env)
 
 NEXT_PUBLIC_API_URL=http://backend:5000
-
-> ⚠️ Do not commit .env files. Commit only .env.example.
 
 ---
 
@@ -177,7 +179,3 @@ For development, you can mount local volumes and use nodemon + next dev for hot 
 ---
 
 🚀 Now you can run the full stack with a single command and the app will be ready for testing or review!
-
-```
-
-```
